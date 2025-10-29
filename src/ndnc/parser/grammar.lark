@@ -1,0 +1,13 @@
+// Simple grammar: only print statements of string literals
+
+?start: statement+
+
+?statement: PRINT STRING                -> print_stmt
+
+PRINT: "print"
+
+%import common.ESCAPED_STRING -> STRING
+%import common.WS
+%ignore WS
+
+

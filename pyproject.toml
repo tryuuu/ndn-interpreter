@@ -1,0 +1,17 @@
+[build-system]
+    requires = ["setuptools>=68", "wheel"]
+    build-backend = "setuptools.build_meta"
+
+
+[project]
+    name = "ndnc"
+    version = "0.0.1"
+    description = "Minimal DSL interpreter (print only, no-NDN)"
+    authors = [{ name = "tryuuu" }]
+    requires-python = ">=3.10"
+    dependencies = [
+        "lark==1.1.9"
+    ]
+
+[project.scripts]
+    ndnc = "ndnc.cli:main"
