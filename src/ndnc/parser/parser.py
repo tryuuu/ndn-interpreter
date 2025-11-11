@@ -5,7 +5,7 @@ from typing import List
 
 from lark import Lark, Transformer, v_args
 
-from .ast import PrintStatement, Program
+from .ast import PrintStatement, ExprStatement, NumberLiteral, Multiply, Program
 
 
 def _load_grammar() -> str:
@@ -26,8 +26,18 @@ class _BuildAST(Transformer):
 			text = text[1:-1]
 		return PrintStatement(value=text)
 
+	@v_args(inline=True)
+	def num_stmt(self, num_token):  # type: ignore[override]
+		return ExprStatement(expr=NumberLiteral(value=int(str(num_token))))
+
+	@v_args(inline=True)
+	def mul_stmt(self, left_num, right_num):  # type: ignore[override]
+		left = NumberLiteral(value=int(str(left_num)))
+		right = NumberLiteral(value=int(str(right_num)))
+		return ExprStatement(expr=Multiply(left=left, right=right))
+
 	def start(self, stmts):  # type: ignore[override]
-		# stmts is a list of PrintStatement objects
+		# stmts is a list of statements (PrintStatement | ExprStatement)
 		# Ensure we always return a list
 		if isinstance(stmts, list):
 			return stmts
@@ -38,7 +48,7 @@ class _BuildAST(Transformer):
 
 def parse(source: str) -> Program:
 	tree = _PARSER.parse(source)
-	program: List[PrintStatement] = _BuildAST().transform(tree)  # type: ignore[assignment]
+	program: Program = _BuildAST().transform(tree)  # type: ignore[assignment]
 	return program
 
 
