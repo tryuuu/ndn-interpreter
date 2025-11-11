@@ -16,18 +16,24 @@ def _load_grammar() -> str:
 _PARSER = Lark(_load_grammar(), start="start", parser="lalr")
 
 
-@v_args(inline=True)
 class _BuildAST(Transformer):
-	def print_stmt(self, s):  # type: ignore[override]
-		# s is a Token('STRING', '"..."')
+	@v_args(inline=True)
+	def print_stmt(self, print_token, string_token):  # type: ignore[override]
+		# string_token is a Token('STRING', '"..."')
 		# Strip quotes using python literal rules of ESCAPED_STRING: remove the surrounding quotes
-		text = str(s)
+		text = str(string_token)
 		if (text.startswith('"') and text.endswith('"')) or (text.startswith("'") and text.endswith("'")):
 			text = text[1:-1]
 		return PrintStatement(value=text)
 
-	def start(self, *stmts):  # type: ignore[override]
-		return list(stmts)
+	def start(self, stmts):  # type: ignore[override]
+		# stmts is a list of PrintStatement objects
+		# Ensure we always return a list
+		if isinstance(stmts, list):
+			return stmts
+		else:
+			# If there's only one statement, wrap it in a list
+			return [stmts]
 
 
 def parse(source: str) -> Program:

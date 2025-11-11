@@ -1,6 +1,6 @@
 // Simple grammar: only print statements of string literals
 
-?start: statement+
+start: statement+                -> start
 
 ?statement: PRINT STRING                -> print_stmt
 

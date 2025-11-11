@@ -1,0 +1,14 @@
+pyproject.toml
+src/ndnc/__init__.py
+src/ndnc/cli.py
+src/ndnc.egg-info/PKG-INFO
+src/ndnc.egg-info/SOURCES.txt
+src/ndnc.egg-info/dependency_links.txt
+src/ndnc.egg-info/entry_points.txt
+src/ndnc.egg-info/requires.txt
+src/ndnc.egg-info/top_level.txt
+src/ndnc/interp/__init__.py
+src/ndnc/interp/evaluator.py
+src/ndnc/parser/__init__.py
+src/ndnc/parser/ast.py
+src/ndnc/parser/parser.py

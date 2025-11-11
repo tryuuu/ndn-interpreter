@@ -17,3 +17,7 @@ def main():
         code = args.source.read_text(encoding="utf-8")
         prog = parse(code)
         Interpreter().run(prog)
+
+
+if __name__ == "__main__":
+    main()
