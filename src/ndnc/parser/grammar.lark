@@ -4,6 +4,7 @@ start: statement+                -> start
 
 ?statement: PRINT STRING                -> print_stmt
          | NUMBER "*" NUMBER            -> mul_stmt
+         | NUMBER "/" NUMBER            -> div_stmt
          | NUMBER                       -> num_stmt
 
 PRINT: "print"

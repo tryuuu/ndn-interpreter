@@ -17,7 +17,12 @@ class Multiply:
 	left: "Expr"
 	right: "Expr"
 
-Expr = Union[NumberLiteral, Multiply]
+@dataclass
+class Divide:
+	left: "Expr"
+	right: "Expr"
+
+Expr = Union[NumberLiteral, Multiply, Divide]
 
 @dataclass
 class ExprStatement:

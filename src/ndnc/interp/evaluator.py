@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import Any
-from ..parser.ast import Program, PrintStatement, ExprStatement, NumberLiteral, Multiply, Expr
+from ..parser.ast import Program, PrintStatement, ExprStatement, NumberLiteral, Multiply, Divide, Expr
 
 class Interpreter:
     def __init__(self):
@@ -34,4 +34,9 @@ class Interpreter:
             return expr.value
         if isinstance(expr, Multiply):
             return self._eval_expr(expr.left) * self._eval_expr(expr.right)
+        if isinstance(expr, Divide):
+            right = self._eval_expr(expr.right)
+            if right == 0:
+                raise ZeroDivisionError("division by zero")
+            return self._eval_expr(expr.left) // right
         raise RuntimeError(f"Unsupported expr: {expr}")

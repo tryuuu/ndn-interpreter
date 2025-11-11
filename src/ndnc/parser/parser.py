@@ -5,7 +5,7 @@ from typing import List
 
 from lark import Lark, Transformer, v_args
 
-from .ast import PrintStatement, ExprStatement, NumberLiteral, Multiply, Program
+from .ast import PrintStatement, ExprStatement, NumberLiteral, Multiply, Divide, Program
 
 
 def _load_grammar() -> str:
@@ -35,6 +35,12 @@ class _BuildAST(Transformer):
 		left = NumberLiteral(value=int(str(left_num)))
 		right = NumberLiteral(value=int(str(right_num)))
 		return ExprStatement(expr=Multiply(left=left, right=right))
+
+	@v_args(inline=True)
+	def div_stmt(self, left_num, right_num):  # type: ignore[override]
+		left = NumberLiteral(value=int(str(left_num)))
+		right = NumberLiteral(value=int(str(right_num)))
+		return ExprStatement(expr=Divide(left=left, right=right))
 
 	def start(self, stmts):  # type: ignore[override]
 		# stmts is a list of statements (PrintStatement | ExprStatement)
