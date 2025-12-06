@@ -3,6 +3,7 @@ import argparse
 from pathlib import Path
 from .parser.parser import parse
 from .interp.evaluator import Interpreter
+from .server import Server
 
 def main():
     ap = argparse.ArgumentParser(prog="ndnc", description="NDN-less minimal DSL interpreter (print only)")
@@ -11,12 +12,16 @@ def main():
     ap_run = sub.add_parser("run", help="Interpret and run a .ndn file")
     ap_run.add_argument("source", type=Path)
 
+    ap_serve = sub.add_parser("serve", help="Start NDN server (producer)")
+
     args = ap.parse_args()
 
     if args.cmd == "run":
         code = args.source.read_text(encoding="utf-8")
         prog = parse(code)
         Interpreter().run(prog)
+    elif args.cmd == "serve":
+        Server().run()
 
 
 if __name__ == "__main__":
