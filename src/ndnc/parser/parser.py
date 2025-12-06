@@ -5,7 +5,7 @@ from typing import List
 
 from lark import Lark, Transformer, v_args
 
-from .ast import PrintStatement, ExprStatement, NumberLiteral, Multiply, Divide, Program
+from .ast import PrintStatement, ExprStatement, NumberLiteral, ExpressInterest, Multiply, Divide, Program
 
 
 def _load_grammar() -> str:
@@ -42,19 +42,23 @@ class _BuildAST(Transformer):
 		right = NumberLiteral(value=int(str(right_num)))
 		return ExprStatement(expr=Divide(left=left, right=right))
 
+	@v_args(inline=True)
+	def interest_stmt(self, interest_token, string_token):  # type: ignore[override]
+		# string_token is a Token('STRING', '"..."')
+		# Strip quotes using python literal rules of ESCAPED_STRING: remove the surrounding quotes
+		text = str(string_token)
+		if (text.startswith('"') and text.endswith('"')) or (text.startswith("'") and text.endswith("'")):
+			text = text[1:-1]
+		return ExprStatement(expr=ExpressInterest(name=text))
+
 	def start(self, stmts):  # type: ignore[override]
-		# stmts is a list of statements (PrintStatement | ExprStatement)
-		# Ensure we always return a list
 		if isinstance(stmts, list):
 			return stmts
 		else:
-			# If there's only one statement, wrap it in a list
 			return [stmts]
 
 
 def parse(source: str) -> Program:
 	tree = _PARSER.parse(source)
-	program: Program = _BuildAST().transform(tree)  # type: ignore[assignment]
+	program: Program = _BuildAST().transform(tree)  
 	return program
-
-

@@ -13,6 +13,10 @@ class NumberLiteral:
 	value: int
 
 @dataclass
+class ExpressInterest:
+	name: str
+
+@dataclass
 class Multiply:
 	left: "Expr"
 	right: "Expr"
@@ -22,7 +26,7 @@ class Divide:
 	left: "Expr"
 	right: "Expr"
 
-Expr = Union[NumberLiteral, Multiply, Divide]
+Expr = Union[NumberLiteral, ExpressInterest, Multiply, Divide]
 
 @dataclass
 class ExprStatement:
