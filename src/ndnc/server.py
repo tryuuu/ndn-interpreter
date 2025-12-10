@@ -17,10 +17,19 @@ class Server:
 
     def run(self):
         @self.app.route('/data/ryu')
-        def on_interest(name, param, _app_param):
+        def on_data_ryu(name, param, _app_param):
             print(f"Received Interest: {Name.to_str(name)}")
             self.app.put_data(name, content=b'success', freshness_period=10000)
             print(f"Sent Data: {Name.to_str(name)} -> success")
 
         print("Server started. Listening for Interests on /data/ryu...")
+
+        @self.app.route('/data/nakazatolab')
+        def on_data_nakazatolab(name, param, _app_param):
+            print(f"Received Interest: {Name.to_str(name)}")
+            self.app.put_data(name, content=b'NDN research', freshness_period=10000)
+            print(f"Sent Data: {Name.to_str(name)} -> NDN research")
+
+        print("Server started. Listening for Interests on /data/ryu...")
+        
         self.app.run_forever()
