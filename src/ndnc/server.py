@@ -21,7 +21,6 @@ class Server:
             print(f"Received Interest: {Name.to_str(name)}")
             self.app.put_data(name, content=b'success', freshness_period=10000)
             print(f"Sent Data: {Name.to_str(name)} -> success")
-
         print("Server started. Listening for Interests on /data/ryu...")
 
         @self.app.route('/data/nakazatolab')
@@ -29,7 +28,6 @@ class Server:
             print(f"Received Interest: {Name.to_str(name)}")
             self.app.put_data(name, content=b'NDN research', freshness_period=10000)
             print(f"Sent Data: {Name.to_str(name)} -> NDN research")
+        print("Server started. Listening for Interests on /data/nakazatolab...")
 
-        print("Server started. Listening for Interests on /data/ryu...")
-        
         self.app.run_forever()
