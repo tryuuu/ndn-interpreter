@@ -4,12 +4,13 @@ import sys
 
 from ndn.app import NDNApp
 from ndn.encoding import Name
+from ndn.security import KeychainDigest
 
 
 class Server:
     def __init__(self):
         try:
-            self.app = NDNApp()
+            self.app = NDNApp(keychain=KeychainDigest())
         except Exception as e:
             print(f"Error: Failed to initialize NDNApp: {e}", file=sys.stderr)
             sys.exit(1)

@@ -1,0 +1,39 @@
+services:
+  nfd:
+    image: ghcr.io/named-data/nfd:latest
+    container_name: nfd
+    environment:
+      - NDN_LOG=nfd.Forwarder=INFO
+    volumes:
+      - ./nfd.conf:/etc/ndn/nfd.conf
+      - nfd-run:/run/nfd
+    ports:
+      - "6363:6363"
+
+  producer:
+    build: .
+    container_name: producer
+    depends_on:
+      - nfd
+    volumes:
+      - nfd-run:/run/nfd
+    environment:
+      - NDN_CLIENT_TRANSPORT=unix:///run/nfd/nfd.sock
+    command: /bin/sh -c "while [ ! -e /run/nfd/nfd.sock ]; do echo 'Waiting for NFD socket...'; sleep 1; done; ndnc serve"
+    restart: always
+
+  consumer:
+    build: .
+    container_name: consumer
+    depends_on:
+      - nfd
+      - producer
+    volumes:
+      - nfd-run:/run/nfd
+    environment:
+      - NDN_CLIENT_TRANSPORT=unix:///run/nfd/nfd.sock
+    tty: true
+    command: /bin/bash
+
+volumes:
+  nfd-run:

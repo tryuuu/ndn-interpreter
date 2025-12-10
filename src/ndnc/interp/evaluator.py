@@ -1,7 +1,10 @@
 from __future__ import annotations
 from typing import Any, Union, Optional
 import asyncio
+import traceback
 from ndn.app import NDNApp
+from ndn.encoding import Name
+from ndn.security import KeychainDigest
 from ..parser.ast import Program, PrintStatement, ExprStatement, NumberLiteral, ExpressInterest, Multiply, Divide, Expr
 
 class Interpreter:
@@ -18,14 +21,25 @@ class Interpreter:
         
         if has_interest:
             try:
-                self.app = NDNApp()
+                # Use KeychainDigest for simple no-auth communication
+                self.app = NDNApp(keychain=KeychainDigest())
+                
                 async def after_start():
                     try:
                         await self._exec_block(program)
+                    except Exception:
+                        traceback.print_exc()
+                        raise
                     finally:
                         self.app.shutdown()
-                self.app.run_forever(after_start=after_start)
-            except Exception:
+                
+                # 【修正】 after_start() と呼び出して、コルーチンとして渡す
+                self.app.run_forever(after_start=after_start())
+                
+            except Exception as e:
+                print(f"DEBUG: NDN Connection/Execution Failed: {e}")
+                traceback.print_exc()
+                
                 # NDNApp initialization failed, continue with mock data
                 self.app = None
                 asyncio.run(self._exec_block(program))
@@ -62,26 +76,42 @@ class Interpreter:
     async def _eval_expr(self, expr: Expr) -> Union[int, str]:
         if isinstance(expr, NumberLiteral):
             return expr.value
+            
         if isinstance(expr, ExpressInterest):
             if self.app is None:
                 # Return mock data when NDNApp is not available
                 return f"mock_{expr.name.replace('/', '_')}"
-            data, meta = await self.app.express_interest(expr.name)
-            # Try to decode as UTF-8 string and convert to int if possible
+            
             try:
-                text = data.decode('utf-8').strip()
+                # python-ndn returns (data_name, meta_info, content)
+                # We need to await the function call
+                data_name, meta_info, content = await self.app.express_interest(
+                    expr.name,
+                    must_be_fresh=True,
+                    can_be_prefix=True,
+                    lifetime=6000
+                )
+                
+                if content is None:
+                    return ""
+                
+                # Convert bytes to string/int
+                text = bytes(content).decode('utf-8').strip()
                 try:
                     return int(text)
                 except ValueError:
                     return text
-            except (UnicodeDecodeError, AttributeError):
-                return str(data)
+            except Exception as e:
+                print(f"Error expressing interest for {expr.name}: {e}")
+                raise e
+
         if isinstance(expr, Multiply):
             left = await self._eval_expr(expr.left)
             right = await self._eval_expr(expr.right)
             if isinstance(left, str) or isinstance(right, str):
                 raise TypeError("Cannot multiply string values")
             return left * right
+            
         if isinstance(expr, Divide):
             right = await self._eval_expr(expr.right)
             if right == 0:
@@ -90,4 +120,5 @@ class Interpreter:
             if isinstance(left, str) or isinstance(right, str):
                 raise TypeError("Cannot divide string values")
             return left // right
+            
         raise RuntimeError(f"Unsupported expr: {expr}")

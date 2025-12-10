@@ -16,3 +16,6 @@
 
 [project.scripts]
     ndnc = "ndnc.cli:main"
+
+[tool.setuptools.package-data]
+"ndnc.parser" = ["*.lark"]

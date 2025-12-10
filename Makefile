@@ -1,12 +1,20 @@
 S ?= examples/hello.ndn
 
-.PHONY: run install serve
+.PHONY: all build up down run logs
 
-install:
-	python -m pip install -e .
+all: build up
+
+build:
+	docker compose build
+
+up:
+	docker compose up -d nfd producer
+
+down:
+	docker compose down
 
 run:
-	python -m ndnc.cli run $(S)
+	docker compose run --rm consumer ndnc run $(S)
 
-serve:
-	python -m ndnc.cli serve
+logs:
+	docker compose logs -f
