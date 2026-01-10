@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import Any, Union, Optional
 import asyncio
 import traceback
+import sys
 from ndn.app import NDNApp
 from ndn.encoding import Name
 from ndn.security import KeychainDigest
@@ -11,6 +12,10 @@ class Interpreter:
     def __init__(self):
         self._env: dict[str, Any] = {}
         self.app: Optional[NDNApp] = None
+        # HashMap for local data
+        self._local_data: dict[str, str] = {
+            '/data/ryu-local/': 'local data'
+        }
 
     def run(self, program: Program):
         # Check if program uses interest expressions
@@ -32,8 +37,7 @@ class Interpreter:
                         raise
                     finally:
                         self.app.shutdown()
-                
-                # 【修正】 after_start() と呼び出して、コルーチンとして渡す
+            
                 self.app.run_forever(after_start=after_start())
                 
             except Exception as e:
@@ -78,6 +82,20 @@ class Interpreter:
             return expr.value
             
         if isinstance(expr, ExpressInterest):
+            # Validate that interest name ends with trailing slash
+            if not expr.name.endswith('/'):
+                print(f"Error: Interest name must end with a trailing slash. Got: {expr.name}", file=sys.stderr)
+                print(f"Expected: {expr.name}/", file=sys.stderr)
+                sys.exit(1)
+            
+            # Checking local HashMap
+            if expr.name in self._local_data:
+                local_value = self._local_data[expr.name]
+                try:
+                    return int(local_value)
+                except ValueError:
+                    return local_value
+            
             if self.app is None:
                 # Return mock data when NDNApp is not available
                 return f"mock_{expr.name.replace('/', '_')}"
