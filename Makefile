@@ -7,8 +7,10 @@ all: build up
 build:
 	docker compose build
 
+# up:
+# 	docker compose up -d nfd producer
 up:
-	docker compose up -d nfd producer
+	docker compose up -d
 
 down:
 	docker compose down
