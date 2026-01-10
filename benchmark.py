@@ -41,7 +41,7 @@ def measure_dns_http():
     print("-" * 30)
 
 if __name__ == "__main__":
-    print("=== Performance Benchmark: NDN vs DNS/HTTP ===\n")
+    print("=== Performance Benchmark: NDN vs HTTP ===\n")
     
     # NDNの計測
     measure_ndnc("NDN Local (Cache Hit)", "/data/ryu-local/")
