@@ -1,15 +1,22 @@
 // Simple grammar: only print statements of string literals
 
-start: statement+                -> start
+start: statement+
 
-?statement: PRINT STRING                -> print_stmt
-         | NUMBER "*" NUMBER            -> mul_stmt
-         | NUMBER "/" NUMBER            -> div_stmt
-         | NUMBER                       -> num_stmt
-         | INTEREST STRING               -> interest_stmt
+?statement: LET IDENTIFIER "=" expr    -> assignment_stmt
+         | PRINT expr                   -> print_stmt
+         | expr                         -> expr_stmt
 
+?expr: STRING                          -> string_literal
+     | NUMBER                          -> number_literal
+     | IDENTIFIER                      -> variable
+     | INTEREST STRING                 -> interest_expr
+     | expr "*" expr                   -> mul_expr
+     | expr "/" expr                   -> div_expr
+
+LET: "let"
 PRINT: "print"
 INTEREST: "interest"
+IDENTIFIER: /[a-zA-Z_][a-zA-Z0-9_]*/
 
 %import common.ESCAPED_STRING -> STRING
 %import common.SIGNED_NUMBER  -> NUMBER

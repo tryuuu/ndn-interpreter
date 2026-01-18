@@ -6,11 +6,24 @@ from typing import List, Union
 
 @dataclass
 class PrintStatement:
+	expr: "Expr"
+
+@dataclass
+class Assignment:
+	name: str
+	expr: "Expr"
+
+@dataclass
+class StringLiteral:
 	value: str
 
 @dataclass
 class NumberLiteral:
 	value: int
+
+@dataclass
+class Variable:
+	name: str
 
 @dataclass
 class ExpressInterest:
@@ -26,12 +39,12 @@ class Divide:
 	left: "Expr"
 	right: "Expr"
 
-Expr = Union[NumberLiteral, ExpressInterest, Multiply, Divide]
+Expr = Union[StringLiteral, NumberLiteral, Variable, ExpressInterest, Multiply, Divide]
 
 @dataclass
 class ExprStatement:
 	expr: Expr
 
 
-Statement = Union[PrintStatement, ExprStatement]
+Statement = Union[PrintStatement, Assignment, ExprStatement]
 Program = List[Statement]

@@ -1,1 +1,2 @@
-interest "/data/ryu-local/"
+let data = interest "/data/ryu-local/"
+print data

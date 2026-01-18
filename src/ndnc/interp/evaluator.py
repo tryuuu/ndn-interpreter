@@ -6,7 +6,11 @@ import sys
 from ndn.app import NDNApp
 from ndn.encoding import Name
 from ndn.security import KeychainDigest
-from ..parser.ast import Program, PrintStatement, ExprStatement, NumberLiteral, ExpressInterest, Multiply, Divide, Expr
+from ..parser.ast import (
+	Program, PrintStatement, Assignment, ExprStatement,
+	StringLiteral, NumberLiteral, Variable,
+	ExpressInterest, Multiply, Divide, Expr
+)
 
 class Interpreter:
     def __init__(self):
@@ -20,7 +24,9 @@ class Interpreter:
     def run(self, program: Program):
         # Check if program uses interest expressions
         has_interest = any(
-            isinstance(st, ExprStatement) and self._has_interest(st.expr)
+            (isinstance(st, ExprStatement) and self._has_interest(st.expr)) or
+            (isinstance(st, PrintStatement) and self._has_interest(st.expr)) or
+            (isinstance(st, Assignment) and self._has_interest(st.expr))
             for st in program
         )
         
@@ -53,6 +59,10 @@ class Interpreter:
     def _has_interest(self, expr: Expr) -> bool:
         if isinstance(expr, ExpressInterest):
             return True
+        if isinstance(expr, Variable):
+            # We can't statically determine if a variable contains an interest result
+            # So we conservatively assume it might
+            return True
         if isinstance(expr, Multiply):
             return self._has_interest(expr.left) or self._has_interest(expr.right)
         if isinstance(expr, Divide):
@@ -64,22 +74,38 @@ class Interpreter:
         for st in node:
             if isinstance(st, PrintStatement):
                 await self._exec_print(st)
+            elif isinstance(st, Assignment):
+                await self._exec_assignment(st)
             elif isinstance(st, ExprStatement):
                 await self._exec_expr_stmt(st)
             else:
                 raise RuntimeError(f"Unsupported node: {st}")
 
     async def _exec_print(self, node: PrintStatement):
-        # PrintStatement.value is already a string
-        print(node.value)
+        # PrintStatement.expr is an expression that needs to be evaluated
+        value = await self._eval_expr(node.expr)
+        print(value)
+
+    async def _exec_assignment(self, node: Assignment):
+        # Evaluate the expression and store it in the environment
+        value = await self._eval_expr(node.expr)
+        self._env[node.name] = value
 
     async def _exec_expr_stmt(self, node: ExprStatement):
         value = await self._eval_expr(node.expr)
         print(value)
 
     async def _eval_expr(self, expr: Expr) -> Union[int, str]:
+        if isinstance(expr, StringLiteral):
+            return expr.value
+            
         if isinstance(expr, NumberLiteral):
             return expr.value
+            
+        if isinstance(expr, Variable):
+            if expr.name not in self._env:
+                raise RuntimeError(f"Variable '{expr.name}' is not defined")
+            return self._env[expr.name]
             
         if isinstance(expr, ExpressInterest):
             # Validate that interest name ends with trailing slash

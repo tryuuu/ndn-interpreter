@@ -5,7 +5,11 @@ from typing import List
 
 from lark import Lark, Transformer, v_args
 
-from .ast import PrintStatement, ExprStatement, NumberLiteral, ExpressInterest, Multiply, Divide, Program
+from .ast import (
+	PrintStatement, Assignment, ExprStatement,
+	StringLiteral, NumberLiteral, Variable,
+	ExpressInterest, Multiply, Divide, Program, Expr
+)
 
 
 def _load_grammar() -> str:
@@ -18,38 +22,53 @@ _PARSER = Lark(_load_grammar(), start="start", parser="lalr")
 
 class _BuildAST(Transformer):
 	@v_args(inline=True)
-	def print_stmt(self, print_token, string_token):  # type: ignore[override]
+	def assignment_stmt(self, let_token, identifier_token, expr: Expr):  # type: ignore[override]
+		# The "=" token is automatically consumed by Lark and not passed to the transformer
+		name = str(identifier_token)
+		return Assignment(name=name, expr=expr)
+
+	@v_args(inline=True)
+	def print_stmt(self, print_token, expr: Expr):  # type: ignore[override]
+		return PrintStatement(expr=expr)
+
+	@v_args(inline=True)
+	def expr_stmt(self, expr: Expr):  # type: ignore[override]
+		return ExprStatement(expr=expr)
+
+	@v_args(inline=True)
+	def string_literal(self, string_token):  # type: ignore[override]
 		# string_token is a Token('STRING', '"..."')
 		# Strip quotes using python literal rules of ESCAPED_STRING: remove the surrounding quotes
 		text = str(string_token)
 		if (text.startswith('"') and text.endswith('"')) or (text.startswith("'") and text.endswith("'")):
 			text = text[1:-1]
-		return PrintStatement(value=text)
+		return StringLiteral(value=text)
 
 	@v_args(inline=True)
-	def num_stmt(self, num_token):  # type: ignore[override]
-		return ExprStatement(expr=NumberLiteral(value=int(str(num_token))))
+	def number_literal(self, num_token):  # type: ignore[override]
+		return NumberLiteral(value=int(str(num_token)))
 
 	@v_args(inline=True)
-	def mul_stmt(self, left_num, right_num):  # type: ignore[override]
-		left = NumberLiteral(value=int(str(left_num)))
-		right = NumberLiteral(value=int(str(right_num)))
-		return ExprStatement(expr=Multiply(left=left, right=right))
+	def variable(self, identifier_token):  # type: ignore[override]
+		name = str(identifier_token)
+		return Variable(name=name)
 
 	@v_args(inline=True)
-	def div_stmt(self, left_num, right_num):  # type: ignore[override]
-		left = NumberLiteral(value=int(str(left_num)))
-		right = NumberLiteral(value=int(str(right_num)))
-		return ExprStatement(expr=Divide(left=left, right=right))
-
-	@v_args(inline=True)
-	def interest_stmt(self, interest_token, string_token):  # type: ignore[override]
+	def interest_expr(self, interest_token, string_token):  # type: ignore[override]
 		# string_token is a Token('STRING', '"..."')
 		# Strip quotes using python literal rules of ESCAPED_STRING: remove the surrounding quotes
 		text = str(string_token)
 		if (text.startswith('"') and text.endswith('"')) or (text.startswith("'") and text.endswith("'")):
 			text = text[1:-1]
-		return ExprStatement(expr=ExpressInterest(name=text))
+		return ExpressInterest(name=text)
+
+	@v_args(inline=True)
+	def mul_expr(self, left: Expr, right: Expr):  # type: ignore[override]
+		return Multiply(left=left, right=right)
+
+	@v_args(inline=True)
+	def div_expr(self, left: Expr, right: Expr):  # type: ignore[override]
+		return Divide(left=left, right=right)
 
 	def start(self, stmts):  # type: ignore[override]
 		if isinstance(stmts, list):
