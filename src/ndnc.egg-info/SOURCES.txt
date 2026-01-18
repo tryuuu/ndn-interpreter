@@ -1,6 +1,8 @@
+README.md
 pyproject.toml
 src/ndnc/__init__.py
 src/ndnc/cli.py
+src/ndnc/server.py
 src/ndnc.egg-info/PKG-INFO
 src/ndnc.egg-info/SOURCES.txt
 src/ndnc.egg-info/dependency_links.txt

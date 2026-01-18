@@ -3,3 +3,4 @@ src/ndnc/__pycache__
 src/ndnc/interp/__pycache__
 benchmark.py
 pib.db
+src/ndnc.egg-info
