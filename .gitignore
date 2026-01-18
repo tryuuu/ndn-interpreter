@@ -1,3 +1,4 @@
 src/ndnc/parser/__pycache__
 src/ndnc/__pycache__
 src/ndnc/interp/__pycache__
+benchmark.py
