@@ -8,7 +8,7 @@ from lark import Lark, Transformer, v_args
 from .ast import (
 	PrintStatement, Assignment, ExprStatement,
 	StringLiteral, NumberLiteral, Variable,
-	ExpressInterest, Multiply, Divide, Program, Expr
+	ExpressInterest, Multiply, Divide, FunctionCall, Program, Expr
 )
 
 
@@ -69,6 +69,12 @@ class _BuildAST(Transformer):
 	@v_args(inline=True)
 	def div_expr(self, left: Expr, right: Expr):  # type: ignore[override]
 		return Divide(left=left, right=right)
+
+	@v_args(inline=True)
+	def call_expr(self, identifier_token, arg: Expr):  # type: ignore[override]
+		# The "(" and ")" tokens are automatically consumed by Lark and not passed to the transformer
+		name = str(identifier_token)
+		return FunctionCall(name=name, arg=arg)
 
 	def start(self, stmts):  # type: ignore[override]
 		if isinstance(stmts, list):

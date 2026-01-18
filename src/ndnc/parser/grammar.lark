@@ -8,6 +8,7 @@ start: statement+
 
 ?expr: STRING                          -> string_literal
      | NUMBER                          -> number_literal
+     | IDENTIFIER "(" expr ")"         -> call_expr
      | IDENTIFIER                      -> variable
      | INTEREST STRING                 -> interest_expr
      | expr "*" expr                   -> mul_expr

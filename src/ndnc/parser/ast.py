@@ -39,7 +39,12 @@ class Divide:
 	left: "Expr"
 	right: "Expr"
 
-Expr = Union[StringLiteral, NumberLiteral, Variable, ExpressInterest, Multiply, Divide]
+@dataclass
+class FunctionCall:
+	name: str
+	arg: "Expr"
+
+Expr = Union[StringLiteral, NumberLiteral, Variable, ExpressInterest, Multiply, Divide, FunctionCall]
 
 @dataclass
 class ExprStatement:

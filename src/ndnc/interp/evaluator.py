@@ -9,7 +9,7 @@ from ndn.security import KeychainDigest
 from ..parser.ast import (
 	Program, PrintStatement, Assignment, ExprStatement,
 	StringLiteral, NumberLiteral, Variable,
-	ExpressInterest, Multiply, Divide, Expr
+	ExpressInterest, Multiply, Divide, FunctionCall, Expr
 )
 
 class Interpreter:
@@ -63,6 +63,8 @@ class Interpreter:
             # We can't statically determine if a variable contains an interest result
             # So we conservatively assume it might
             return True
+        if isinstance(expr, FunctionCall):
+            return self._has_interest(expr.arg)
         if isinstance(expr, Multiply):
             return self._has_interest(expr.left) or self._has_interest(expr.right)
         if isinstance(expr, Divide):
@@ -164,5 +166,16 @@ class Interpreter:
             if isinstance(left, str) or isinstance(right, str):
                 raise TypeError("Cannot divide string values")
             return left // right
+
+        if isinstance(expr, FunctionCall):
+            # Evaluate the argument first
+            arg_value = await self._eval_expr(expr.arg)
+            
+            # Handle built-in functions
+            if expr.name == "modify":
+                # Convert arg_value to string and append " from function"
+                return str(arg_value) + " from function"
+            else:
+                raise RuntimeError(f"Unknown function: {expr.name}")
             
         raise RuntimeError(f"Unsupported expr: {expr}")
