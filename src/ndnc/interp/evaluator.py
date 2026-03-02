@@ -12,6 +12,9 @@ from ..parser.ast import (
 	ExpressInterest, Multiply, Divide, FunctionCall, Expr
 )
 
+# ローカルで処理できる関数名のセット
+_LOCAL_FUNCTIONS = {"modify"}
+
 class Interpreter:
     def __init__(self):
         self._env: dict[str, Any] = {}
@@ -64,7 +67,8 @@ class Interpreter:
             # So we conservatively assume it might
             return True
         if isinstance(expr, FunctionCall):
-            return self._has_interest(expr.arg)
+            # ローカルにない関数はリモート呼び出しになるため NDNApp が必要
+            return (expr.name not in _LOCAL_FUNCTIONS) or self._has_interest(expr.arg)
         if isinstance(expr, Multiply):
             return self._has_interest(expr.left) or self._has_interest(expr.right)
         if isinstance(expr, Divide):
@@ -168,14 +172,30 @@ class Interpreter:
             return left // right
 
         if isinstance(expr, FunctionCall):
-            # Evaluate the argument first
             arg_value = await self._eval_expr(expr.arg)
-            
-            # Handle built-in functions
-            if expr.name == "modify":
-                # Convert arg_value to string and append " from function"
+
+            if expr.name in _LOCAL_FUNCTIONS:
                 return str(arg_value) + " from function"
+            elif self.app is not None:
+                return await self._call_remote_function(expr.name, arg_value)
             else:
                 raise RuntimeError(f"Unknown function: {expr.name}")
             
         raise RuntimeError(f"Unsupported expr: {expr}")
+
+    async def _call_remote_function(self, func_name: str, arg: Any) -> str:
+        # NDN Interest 名: /<func_name>/<arg>
+        interest_name = f"/{func_name}/{arg}"
+        try:
+            _data_name, _meta_info, content = await self.app.express_interest(
+                interest_name,
+                must_be_fresh=True,
+                can_be_prefix=False,
+                lifetime=6000
+            )
+            if content is None:
+                return ""
+            return bytes(content).decode('utf-8').strip()
+        except Exception as e:
+            print(f"Error calling remote function '{func_name}': {e}")
+            raise
