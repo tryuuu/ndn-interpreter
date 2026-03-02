@@ -1,0 +1,24 @@
+{
+  "name": "ndn-language",
+  "displayName": "NDN Language",
+  "description": "Syntax highlighting for .ndn files",
+  "version": "0.0.1",
+  "engines": { "vscode": "^1.75.0" },
+  "contributes": {
+    "languages": [
+      {
+        "id": "ndn",
+        "aliases": ["NDN", "ndn"],
+        "extensions": [".ndn"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "ndn",
+        "scopeName": "source.ndn",
+        "path": "./syntaxes/ndn.tmLanguage.json"
+      }
+    ]
+  }
+}
