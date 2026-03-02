@@ -1,0 +1,56 @@
+sequenceDiagram
+    autonumber
+    participant User as ユーザー / 入力
+    participant Parser as Parser<br/>(Lexer / Syntax Analysis)
+    participant Interpreter as Interpreter
+    participant Env as Variable Env<br/>(self._env)
+    participant Store as Local Store<br/>(self._local_data)
+    participant NFD as NFD<br/>(Forwarder)
+    participant RemoteModify as remote_modify<br/>Producer
+
+    Note over NFD, RemoteModify: Phase 0: プロデューサー起動・NFDへの広告
+    RemoteModify->>NFD: app.route("/remote_modify")<br/>プレフィックスを登録
+
+    Note over User, Parser: Phase 1: 解析とAST作成
+    User->>Parser: .ndn ファイル読み込み
+    Parser->>Parser: 字句解析・構文解析<br/>(Assignment, FuncCall等)
+    Parser-->>Interpreter: AST (抽象構文木) を生成して渡す
+
+    Note over Interpreter, RemoteModify: Phase 2: AST解釈と実行
+
+    %% 1. let data = interest "..." の処理
+    Note right of Interpreter: ① let data = interest "..."
+    Interpreter->>Interpreter: 右辺 (interest式) を評価
+    Interpreter->>Store: Key (名前) で検索
+
+    alt ローカルにデータがある場合 (Hit)
+        Store-->>Interpreter: Value (Data) を返す
+    else ローカルにデータがない場合 (Miss)
+        Store-->>Interpreter: なし (Not Found)
+        Interpreter->>NFD: express_interest (Name)
+        NFD-->>Interpreter: Data Content (受信)
+    end
+
+    Interpreter->>Env: 変数 "data" に値を保存
+
+    %% 2. let result = function(data) の処理
+    Env-->>Interpreter: "data"を返す
+    Note right of Interpreter: ② let result = function(data)
+
+    alt ローカル関数の場合 
+        Interpreter->>Interpreter: 関数をローカルで実行<br/>(例: modify)
+    else リモート関数の場合 
+        Interpreter->>NFD: express_interest ("/<func_name>/<arg>")
+        NFD->>RemoteModify: Interest を転送
+        RemoteModify->>RemoteModify: 関数を実行し結果を生成
+        RemoteModify-->>NFD: Data を返す
+        NFD-->>Interpreter: Data Content (受信)
+    end
+
+    Interpreter->>Env: メモリ上の変数に加工後の値を保存
+
+    %% 3. print result の処理
+    Note right of Interpreter: ③ print result
+    Interpreter->>Env: 変数の値を参照
+    Env-->>Interpreter: 最終的な値を返す
+    Interpreter->>User: コンソールに結果を出力
