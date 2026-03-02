@@ -2,10 +2,12 @@
 
 start: statement+
 
+// 定義できる文法
 ?statement: LET IDENTIFIER "=" expr    -> assignment_stmt
          | PRINT expr                   -> print_stmt
          | expr                         -> expr_stmt
 
+// exprの種類を定義
 ?expr: STRING                          -> string_literal
      | NUMBER                          -> number_literal
      | IDENTIFIER "(" expr ")"         -> call_expr
@@ -23,5 +25,3 @@ IDENTIFIER: /[a-zA-Z_][a-zA-Z0-9_]*/
 %import common.SIGNED_NUMBER  -> NUMBER
 %import common.WS
 %ignore WS
-
-
