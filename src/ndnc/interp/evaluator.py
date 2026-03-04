@@ -18,6 +18,7 @@ _LOCAL_FUNCTIONS = {"modify"}
 class Interpreter:
     def __init__(self):
         self._env: dict[str, Any] = {}
+        self._env_origin: dict[str, str] = {}  # interest で取得した変数の NDN 名を追跡
         self.app: Optional[NDNApp] = None
         # HashMap for local data
         self._local_data: dict[str, str] = {
@@ -37,7 +38,10 @@ class Interpreter:
             try:
                 # Use KeychainDigest for simple no-auth communication
                 self.app = NDNApp(keychain=KeychainDigest())
-                
+                # ローカルデータを NDN プロデューサーとして登録する
+                # （リモート関数がこれらをフェッチできるようにするため）
+                self._register_local_data_routes()
+
                 async def after_start():
                     try:
                         await self._exec_block(program)
@@ -68,7 +72,7 @@ class Interpreter:
             return True
         if isinstance(expr, FunctionCall):
             # ローカルにない関数はリモート呼び出しになるため NDNApp が必要
-            return (expr.name not in _LOCAL_FUNCTIONS) or self._has_interest(expr.arg)
+            return (expr.name not in _LOCAL_FUNCTIONS) or any(self._has_interest(a) for a in expr.args)
         if isinstance(expr, Multiply):
             return self._has_interest(expr.left) or self._has_interest(expr.right)
         if isinstance(expr, Divide):
@@ -96,6 +100,9 @@ class Interpreter:
         # Evaluate the expression and store it in the environment
         value = await self._eval_expr(node.expr)
         self._env[node.name] = value
+        # interest で取得した変数は NDN 名を記録しておく
+        if isinstance(node.expr, ExpressInterest):
+            self._env_origin[node.name] = node.expr.name
 
     async def _exec_expr_stmt(self, node: ExprStatement):
         value = await self._eval_expr(node.expr)
@@ -172,26 +179,63 @@ class Interpreter:
             return left // right
 
         if isinstance(expr, FunctionCall):
-            arg_value = await self._eval_expr(expr.arg)
+            arg_values = [await self._eval_expr(a) for a in expr.args]
 
             if expr.name in _LOCAL_FUNCTIONS:
-                return str(arg_value) + " from function"
+                return str(arg_values[0]) + " from function"
             elif self.app is not None:
-                return await self._call_remote_function(expr.name, arg_value)
+                # Sidecar に倣い、引数は NDN 名として渡す
+                ndn_names = [self._to_ndn_name(a) for a in expr.args]
+                return await self._call_remote_function(expr.name, ndn_names)
             else:
                 raise RuntimeError(f"Unknown function: {expr.name}")
-            
+
         raise RuntimeError(f"Unsupported expr: {expr}")
 
-    async def _call_remote_function(self, func_name: str, arg: Any) -> str:
-        # NDN Interest 名: /<func_name>/<arg>
-        interest_name = f"/{func_name}/{arg}"
+    def _register_local_data_routes(self):
+        """ローカルデータを NDN プロデューサーとして登録する。
+        リモート関数がフェッチできるよう、Interest に応答できるようにする。"""
+        for ndn_name, value in self._local_data.items():
+            prefix = ndn_name.rstrip('/')
+            val_bytes = str(value).encode()
+
+            def make_handler(content):
+                def handler(name, param, app_param):
+                    self.app.put_data(name, content=content, freshness_period=10000)
+                return handler
+
+            self.app.route(prefix)(make_handler(val_bytes))
+
+    def _to_ndn_name(self, expr: Expr) -> str:
+        """リモート関数の引数として使う NDN 名を決定する。
+        - ExpressInterest → そのまま NDN 名を返す
+        - Variable → interest 由来なら記録済みの NDN 名、そうでなければ値を NDN 名として扱う
+        - StringLiteral → 先頭 '/' を補完して NDN 名とする"""
+        if isinstance(expr, ExpressInterest):
+            return expr.name
+        if isinstance(expr, Variable):
+            if expr.name in self._env_origin:
+                return self._env_origin[expr.name]
+            val = self._env.get(expr.name, "")
+            if isinstance(val, str):
+                return val if val.startswith('/') else '/' + val
+            return str(val)
+        if isinstance(expr, StringLiteral):
+            val = expr.value
+            return val if val.startswith('/') else '/' + val
+        return str(expr)
+
+    async def _call_remote_function(self, func_name: str, ndn_names: list[str]) -> str:
+        # Sidecar に倣い、括弧記法で Interest 名を構築する
+        # 例: /temperature_average/(/data/tokyo, /data/paris)
+        args_str = ", ".join(ndn_names)
+        interest_name = "/" + func_name + "/(" + args_str + ")"
         try:
             _data_name, _meta_info, content = await self.app.express_interest(
                 interest_name,
                 must_be_fresh=True,
                 can_be_prefix=False,
-                lifetime=6000
+                lifetime=20000  # リモート関数が引数をフェッチする時間を考慮して長めに設定
             )
             if content is None:
                 return ""

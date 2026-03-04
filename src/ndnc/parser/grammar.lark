@@ -8,13 +8,13 @@ start: statement+
          | expr                         -> expr_stmt
 
 // exprの種類を定義
-?expr: STRING                          -> string_literal
-     | NUMBER                          -> number_literal
-     | IDENTIFIER "(" expr ")"         -> call_expr
-     | IDENTIFIER                      -> variable
-     | INTEREST STRING                 -> interest_expr
-     | expr "*" expr                   -> mul_expr
-     | expr "/" expr                   -> div_expr
+?expr: STRING                                    -> string_literal
+     | NUMBER                                    -> number_literal
+     | IDENTIFIER "(" expr ("," expr)* ")"       -> call_expr
+     | IDENTIFIER                                -> variable
+     | INTEREST STRING                           -> interest_expr
+     | expr "*" expr                             -> mul_expr
+     | expr "/" expr                             -> div_expr
 
 LET: "let"
 PRINT: "print"

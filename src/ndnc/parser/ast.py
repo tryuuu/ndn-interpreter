@@ -42,7 +42,7 @@ class Divide:
 @dataclass
 class FunctionCall:
 	name: str
-	arg: "Expr"
+	args: List["Expr"]
 
 Expr = Union[StringLiteral, NumberLiteral, Variable, ExpressInterest, Multiply, Divide, FunctionCall]
 

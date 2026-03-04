@@ -70,11 +70,12 @@ class _BuildAST(Transformer):
 	def div_expr(self, left: Expr, right: Expr):  # type: ignore[override]
 		return Divide(left=left, right=right)
 
-	@v_args(inline=True)
-	def call_expr(self, identifier_token, arg: Expr):  # type: ignore[override]
-		# The "(" and ")" tokens are automatically consumed by Lark and not passed to the transformer
-		name = str(identifier_token)
-		return FunctionCall(name=name, arg=arg)
+	def call_expr(self, items):  # type: ignore[override]
+		# items = [IDENTIFIER_token, expr1, expr2, ...]
+		# "(" and ")" tokens are automatically consumed by Lark
+		name = str(items[0])
+		args = list(items[1:])
+		return FunctionCall(name=name, args=args)
 
 	def start(self, stmts):  # type: ignore[override]
 		if isinstance(stmts, list):
