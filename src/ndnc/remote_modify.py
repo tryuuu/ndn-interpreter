@@ -13,7 +13,6 @@ logging.basicConfig(format='[{asctime}]{levelname}:{message}',
                     level=logging.INFO,
                     style='{')
 
-# 気温データ（NDN 名 → 摂氏）
 _TEMPERATURE_DATA: dict[str, float] = {
     '/data/tokyo':   22.5,
     '/data/paris':   18.0,
@@ -22,13 +21,8 @@ _TEMPERATURE_DATA: dict[str, float] = {
     '/data/sydney':  26.1,
 }
 
-# producer 用アプリ（ルート登録・データ返却）
 app = NDNApp(keychain=KeychainDigest())
-# consumer 用アプリ（引数の NDN 名からデータをフェッチ）
 consumer_app = NDNApp(keychain=KeychainDigest())
-
-
-# ── ndn_utils（Sidecar の lib/ndn_utils.py に準拠） ────────────────────────
 
 def decode_and_remove_metadata(name: FormalName) -> str:
     """NDN FormalName をデコードし、/t= などのメタデータを除去して返す。"""
@@ -74,9 +68,6 @@ def extract_first_level_args(name: FormalName) -> list[str]:
     args.append(args_str[start:].strip())
     return args
 
-
-# ── 引数データ取得ヘルパー ────────────────────────────────────────────────
-
 async def _fetch_arg(ndn_name: str) -> Optional[bytes]:
     """引数の NDN 名に対応するデータを取得する。
     ローカルデータストアを先に確認し、なければ consumer_app で Interest を発行する。"""
@@ -84,8 +75,7 @@ async def _fetch_arg(ndn_name: str) -> Optional[bytes]:
     if key in _TEMPERATURE_DATA:
         logging.info(f"[local] {key} = {_TEMPERATURE_DATA[key]}")
         return str(_TEMPERATURE_DATA[key]).encode()
-
-    # Sidecar に倣い、短いタイムアウトで最大 5 回リトライする
+    
     logging.info(f"[fetch] {ndn_name}")
     for attempt in range(5):
         try:
@@ -101,8 +91,6 @@ async def _fetch_arg(ndn_name: str) -> Optional[bytes]:
     logging.error(f"[fetch] GIVE-UP {ndn_name}")
     return None
 
-
-# ── ルート登録 ────────────────────────────────────────────────────────────
 
 @app.route('/data')
 def on_data(name: FormalName, param: InterestParam, _app_param: Optional[BinaryStr]):

@@ -23,7 +23,6 @@ _PARSER = Lark(_load_grammar(), start="start", parser="lalr")
 class _BuildAST(Transformer):
 	@v_args(inline=True)
 	def assignment_stmt(self, let_token, identifier_token, expr: Expr):  # type: ignore[override]
-		# The "=" token is automatically consumed by Lark and not passed to the transformer
 		name = str(identifier_token)
 		return Assignment(name=name, expr=expr)
 
@@ -37,8 +36,6 @@ class _BuildAST(Transformer):
 
 	@v_args(inline=True)
 	def string_literal(self, string_token):  # type: ignore[override]
-		# string_token is a Token('STRING', '"..."')
-		# Strip quotes using python literal rules of ESCAPED_STRING: remove the surrounding quotes
 		text = str(string_token)
 		if (text.startswith('"') and text.endswith('"')) or (text.startswith("'") and text.endswith("'")):
 			text = text[1:-1]
@@ -55,16 +52,12 @@ class _BuildAST(Transformer):
 
 	@v_args(inline=True)
 	def interest_expr(self, interest_token, string_token):  # type: ignore[override]
-		# string_token is a Token('STRING', '"..."')
-		# Strip quotes using python literal rules of ESCAPED_STRING: remove the surrounding quotes
 		text = str(string_token)
 		if (text.startswith('"') and text.endswith('"')) or (text.startswith("'") and text.endswith("'")):
 			text = text[1:-1]
 		return ExpressInterest(name=text)
 
 	def call_expr(self, items):  # type: ignore[override]
-		# items = [IDENTIFIER_token, expr1, expr2, ...]
-		# "(" and ")" tokens are automatically consumed by Lark
 		name = str(items[0])
 		args = list(items[1:])
 		return FunctionCall(name=name, args=args)
@@ -75,8 +68,7 @@ class _BuildAST(Transformer):
 		else:
 			return [stmts]
 
-
 def parse(source: str) -> Program:
 	tree = _PARSER.parse(source)
-	program: Program = _BuildAST().transform(tree)  
+	program: Program = _BuildAST().transform(tree)
 	return program
