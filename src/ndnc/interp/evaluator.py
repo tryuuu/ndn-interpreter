@@ -9,7 +9,7 @@ from ndn.security import KeychainDigest
 from ..parser.ast import (
 	Program, PrintStatement, Assignment, ExprStatement,
 	StringLiteral, NumberLiteral, Variable,
-	ExpressInterest, Multiply, Divide, FunctionCall, Expr
+	ExpressInterest, FunctionCall, Expr
 )
 
 # ローカルで処理できる関数名のセット
@@ -73,10 +73,6 @@ class Interpreter:
         if isinstance(expr, FunctionCall):
             # ローカルにない関数はリモート呼び出しになるため NDNApp が必要
             return (expr.name not in _LOCAL_FUNCTIONS) or any(self._has_interest(a) for a in expr.args)
-        if isinstance(expr, Multiply):
-            return self._has_interest(expr.left) or self._has_interest(expr.right)
-        if isinstance(expr, Divide):
-            return self._has_interest(expr.left) or self._has_interest(expr.right)
         return False
 
     async def _exec_block(self, node: Program):
@@ -161,22 +157,6 @@ class Interpreter:
             except Exception as e:
                 print(f"Error expressing interest for {expr.name}: {e}")
                 raise e
-
-        if isinstance(expr, Multiply):
-            left = await self._eval_expr(expr.left)
-            right = await self._eval_expr(expr.right)
-            if isinstance(left, str) or isinstance(right, str):
-                raise TypeError("Cannot multiply string values")
-            return left * right
-            
-        if isinstance(expr, Divide):
-            right = await self._eval_expr(expr.right)
-            if right == 0:
-                raise ZeroDivisionError("division by zero")
-            left = await self._eval_expr(expr.left)
-            if isinstance(left, str) or isinstance(right, str):
-                raise TypeError("Cannot divide string values")
-            return left // right
 
         if isinstance(expr, FunctionCall):
             arg_values = [await self._eval_expr(a) for a in expr.args]

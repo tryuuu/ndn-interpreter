@@ -13,8 +13,6 @@ start: statement+
      | IDENTIFIER "(" expr ("," expr)* ")"       -> call_expr
      | IDENTIFIER                                -> variable
      | INTEREST STRING                           -> interest_expr
-     | expr "*" expr                             -> mul_expr
-     | expr "/" expr                             -> div_expr
 
 LET: "let"
 PRINT: "print"

@@ -30,21 +30,11 @@ class ExpressInterest:
 	name: str
 
 @dataclass
-class Multiply:
-	left: "Expr"
-	right: "Expr"
-
-@dataclass
-class Divide:
-	left: "Expr"
-	right: "Expr"
-
-@dataclass
 class FunctionCall:
 	name: str
 	args: List["Expr"]
 
-Expr = Union[StringLiteral, NumberLiteral, Variable, ExpressInterest, Multiply, Divide, FunctionCall]
+Expr = Union[StringLiteral, NumberLiteral, Variable, ExpressInterest, FunctionCall]
 
 @dataclass
 class ExprStatement:

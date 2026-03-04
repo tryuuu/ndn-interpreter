@@ -8,7 +8,7 @@ from lark import Lark, Transformer, v_args
 from .ast import (
 	PrintStatement, Assignment, ExprStatement,
 	StringLiteral, NumberLiteral, Variable,
-	ExpressInterest, Multiply, Divide, FunctionCall, Program, Expr
+	ExpressInterest, FunctionCall, Program, Expr
 )
 
 
@@ -61,14 +61,6 @@ class _BuildAST(Transformer):
 		if (text.startswith('"') and text.endswith('"')) or (text.startswith("'") and text.endswith("'")):
 			text = text[1:-1]
 		return ExpressInterest(name=text)
-
-	@v_args(inline=True)
-	def mul_expr(self, left: Expr, right: Expr):  # type: ignore[override]
-		return Multiply(left=left, right=right)
-
-	@v_args(inline=True)
-	def div_expr(self, left: Expr, right: Expr):  # type: ignore[override]
-		return Divide(left=left, right=right)
 
 	def call_expr(self, items):  # type: ignore[override]
 		# items = [IDENTIFIER_token, expr1, expr2, ...]
