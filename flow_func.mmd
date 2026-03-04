@@ -13,8 +13,8 @@ sequenceDiagram
     alt ローカル関数の場合
         Interpreter->>Interpreter: 関数をローカルで実行<br/>(例: modify)
     else リモート関数の場合: NDN-FCW+
-        Interpreter->>Interpreter: _to_ndn_name() で引数を Interest の形式に変換<br/>(例: /data/ryu-local/)
-        Interpreter->>NFD: express_interest<br/>「/<func_name>/(<arg_ndn_name>, ...)」
+        Interpreter->>Interpreter: _to_ndn_name() で引数を Interest の形式に変換
+        Interpreter->>NFD: express_interest<br/>「/<func_name>/(<arg>, ...)」
         NFD->>RemoteModify: Interest を転送
         RemoteModify->>RemoteModify: is_function_request() で関数リクエストと判定
         RemoteModify->>RemoteModify: extract_first_level_args() で関数名を抽出
