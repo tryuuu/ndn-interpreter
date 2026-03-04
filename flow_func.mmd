@@ -1,0 +1,34 @@
+sequenceDiagram
+    autonumber
+    participant Interpreter as Interpreter
+    participant Env as Variable Env<br/>(self._env / _env_origin)
+    participant NFD as NFD<br/>(Forwarder)
+    participant RemoteModify as remote_modify<br/>Producer
+
+    Note over Interpreter, RemoteModify: Phase 2: AST解釈と実行（関数実行フェーズ）
+
+    Env-->>Interpreter: "data" の値と NDN 名を返す
+    Note right of Interpreter: ③ let result = remote_modify(data)
+
+    alt ローカル関数の場合
+        Interpreter->>Interpreter: 関数をローカルで実行<br/>(例: modify)
+    else リモート関数の場合: NDN-FCW+
+        Interpreter->>Interpreter: _to_ndn_name() で引数を Interest の形式に変換<br/>(例: /data/ryu-local/)
+        Interpreter->>NFD: express_interest<br/>「/<func_name>/(<arg_ndn_name>, ...)」
+        NFD->>RemoteModify: Interest を転送
+        RemoteModify->>RemoteModify: is_function_request() で関数リクエストと判定
+        RemoteModify->>RemoteModify: extract_first_level_args() で関数名を抽出
+        loop 関数の引数に対して
+            RemoteModify->>RemoteModify: _TEMPERATURE_DATA からローカルで値を取得
+        end
+        RemoteModify->>RemoteModify: 関数を実行し結果を生成
+        RemoteModify-->>NFD: Data を返す
+        NFD-->>Interpreter: Data Content (受信)
+    end
+
+    Interpreter->>Env: 変数に加工後の値を保存
+
+    Note right of Interpreter: ④ print result
+    Interpreter->>Env: 変数の値を参照
+    Env-->>Interpreter: 最終的な値を返す
+    Interpreter->>Interpreter: コンソールに結果を出力

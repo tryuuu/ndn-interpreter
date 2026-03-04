@@ -1,11 +1,9 @@
 import asyncio
-import threading
 import urllib.parse
 from typing import Optional
 from ndn.app import NDNApp
 from ndn.encoding import Name, InterestParam, BinaryStr, FormalName
 from ndn.security import KeychainDigest
-from ndn.types import InterestNack, InterestTimeout
 
 import logging
 logging.basicConfig(format='[{asctime}]{levelname}:{message}',
@@ -22,7 +20,7 @@ _TEMPERATURE_DATA: dict[str, float] = {
 }
 
 app = NDNApp(keychain=KeychainDigest())
-consumer_app = NDNApp(keychain=KeychainDigest())
+
 
 def decode_and_remove_metadata(name: FormalName) -> str:
     """NDN FormalName をデコードし、/t= などのメタデータを除去して返す。"""
@@ -68,27 +66,14 @@ def extract_first_level_args(name: FormalName) -> list[str]:
     args.append(args_str[start:].strip())
     return args
 
-async def _fetch_arg(ndn_name: str) -> Optional[bytes]:
-    """引数の NDN 名に対応するデータを取得する。
-    ローカルデータストアを先に確認し、なければ consumer_app で Interest を発行する。"""
+
+def _fetch_arg(ndn_name: str) -> Optional[bytes]:
+    """引数の NDN 名に対応するデータをローカルデータストアから取得する。"""
     key = ndn_name.rstrip('/')
     if key in _TEMPERATURE_DATA:
         logging.info(f"[local] {key} = {_TEMPERATURE_DATA[key]}")
         return str(_TEMPERATURE_DATA[key]).encode()
-    
-    logging.info(f"[fetch] {ndn_name}")
-    for attempt in range(5):
-        try:
-            _, _, content = await consumer_app.express_interest(
-                ndn_name, must_be_fresh=True, can_be_prefix=True, lifetime=2000
-            )
-            if content:
-                logging.info(f"[fetch] OK {ndn_name} (attempt {attempt + 1})")
-                return bytes(content)
-        except (InterestNack, InterestTimeout) as e:
-            logging.warning(f"[fetch] {ndn_name} attempt {attempt + 1} failed: {e}")
-        await asyncio.sleep(0.3)
-    logging.error(f"[fetch] GIVE-UP {ndn_name}")
+    logging.warning(f"Unknown data key: {key}")
     return None
 
 
@@ -118,7 +103,7 @@ def on_modify(name: FormalName, param: InterestParam, _app_param: Optional[Binar
         args = extract_first_level_args(name)
         logging.info(f"Args: {args}")
 
-        contents = await asyncio.gather(*[_fetch_arg(a) for a in args])
+        contents = [_fetch_arg(a) for a in args]
         if any(c is None for c in contents):
             app.put_data(name, content=b"error: failed to fetch argument", freshness_period=10000)
             return
@@ -141,7 +126,7 @@ def on_temperature_average(name: FormalName, param: InterestParam, _app_param: O
         args = extract_first_level_args(name)
         logging.info(f"Args: {args}")
 
-        contents = await asyncio.gather(*[_fetch_arg(a) for a in args])
+        contents = [_fetch_arg(a) for a in args]
         if any(c is None for c in contents):
             app.put_data(name, content=b"error: failed to fetch argument(s)", freshness_period=10000)
             return
@@ -159,7 +144,6 @@ def on_temperature_average(name: FormalName, param: InterestParam, _app_param: O
 
 
 if __name__ == '__main__':
-    threading.Thread(target=consumer_app.run_forever, daemon=True).start()
     print("Starting remote function node")
     print(f"  /remote_modify       : /remote_modify/(<arg_ndn_name>)")
     print(f"  /temperature_average : /temperature_average/(<name1>, <name2>, ...)")
