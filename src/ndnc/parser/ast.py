@@ -9,6 +9,10 @@ class PrintStatement:
 	expr: "Expr"
 
 @dataclass
+class ReturnStatement:
+	expr: "Expr"
+
+@dataclass
 class Assignment:
 	name: str
 	expr: "Expr"
@@ -53,5 +57,5 @@ class ExprStatement:
 	expr: Expr
 
 
-Statement = Union[PrintStatement, Assignment, ExprStatement]
+Statement = Union[PrintStatement, ReturnStatement, Assignment, ExprStatement]
 Program = List[Statement]

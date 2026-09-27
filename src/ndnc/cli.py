@@ -1,16 +1,19 @@
 from __future__ import annotations
 import argparse
+import json
 from pathlib import Path
 from .parser.parser import parse
 from .interp.evaluator import Interpreter
 from .server import Server
 
 def main():
-    ap = argparse.ArgumentParser(prog="ndnc", description="NDN-less minimal DSL interpreter (print only)")
+    ap = argparse.ArgumentParser(prog="ndnc", description="NDN DSL interpreter")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     ap_run = sub.add_parser("run", help="Interpret and run a .ndn file")
     ap_run.add_argument("source", type=Path)
+    ap_run.add_argument("--result-file", type=Path,
+                        help="Write the explicit return value as JSON, separately from stdout")
     ap_run.add_argument("ndn_args", nargs="*", metavar="ARG",
                         help="NDN names passed as arg0, arg1, ... to the script")
 
@@ -23,7 +26,9 @@ def main():
         prog = parse(code)
         # 位置引数を arg0, arg1, ... として Interpreter に渡す
         ndn_args = {f"arg{i}": v for i, v in enumerate(args.ndn_args)}
-        Interpreter(args=ndn_args).run(prog)
+        result = Interpreter(args=ndn_args).run(prog)
+        if args.result_file is not None:
+            args.result_file.write_text(json.dumps(result, ensure_ascii=False), encoding="utf-8")
     elif args.cmd == "serve":
         Server().run()
 
