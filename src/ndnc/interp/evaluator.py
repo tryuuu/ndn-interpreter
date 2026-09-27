@@ -1,18 +1,15 @@
 from __future__ import annotations
 from typing import Any, Union, Optional
 import asyncio
-import contextlib
-import io
 import json
 import time
-import traceback
 import sys
 from pathlib import Path
 from ndn.app import NDNApp
 from ndn.encoding import Name
 from ndn.security import KeychainDigest
 from ..parser.ast import (
-	Program, PrintStatement, Assignment, ExprStatement,
+	Program, PrintStatement, ReturnStatement, Assignment, ExprStatement,
 	StringLiteral, NumberLiteral, Variable,
 	ExpressInterest, FunctionCall, BinOp, UnaryOp, Expr
 )
@@ -91,36 +88,28 @@ class Interpreter:
         }
 
     def run(self, program: Program):
-        has_interest = any(
-            (isinstance(st, ExprStatement) and self._has_interest(st.expr)) or
-            (isinstance(st, PrintStatement) and self._has_interest(st.expr)) or
-            (isinstance(st, Assignment) and self._has_interest(st.expr))
-            for st in program
-        )
+        has_interest = any(self._has_interest(st.expr) for st in program)
+        if not has_interest:
+            return asyncio.run(self._exec_block(program))
 
-        if has_interest:
+        self.app = NDNApp(keychain=KeychainDigest())
+        self._register_local_data_routes()
+        result = None
+        failure = None
+
+        async def after_start():
+            nonlocal result, failure
             try:
-                self.app = NDNApp(keychain=KeychainDigest())
-                # ローカルデータを NDN プロデューサーとして登録する
-                # （リモート関数がこれらをフェッチできるようにするため）
-                self._register_local_data_routes()
+                result = await self._exec_block(program)
+            except Exception as exc:
+                failure = exc
+            finally:
+                self.app.shutdown()
 
-                async def after_start():
-                    try:
-                        await self._exec_block(program)
-                    except Exception:
-                        traceback.print_exc()
-                        raise
-                    finally:
-                        self.app.shutdown()
-
-                self.app.run_forever(after_start=after_start())
-
-            except Exception:
-                self.app = None
-                asyncio.run(self._exec_block(program))
-        else:
-            asyncio.run(self._exec_block(program))
+        self.app.run_forever(after_start=after_start())
+        if failure is not None:
+            raise failure
+        return result
 
     def _has_interest(self, expr: Expr) -> bool:
         if isinstance(expr, ExpressInterest):
@@ -129,6 +118,10 @@ class Interpreter:
                 return True
             # _local_data にあればネットワーク不要
             return expr.name not in self._local_data
+        if isinstance(expr, BinOp):
+            return self._has_interest(expr.left) or self._has_interest(expr.right)
+        if isinstance(expr, UnaryOp):
+            return self._has_interest(expr.operand)
         if isinstance(expr, Variable):
             return False
         if isinstance(expr, FunctionCall):
@@ -138,7 +131,9 @@ class Interpreter:
 
     async def _exec_block(self, node: Program):
         for st in node:
-            if isinstance(st, PrintStatement):
+            if isinstance(st, ReturnStatement):
+                return await self._eval_expr(st.expr)
+            elif isinstance(st, PrintStatement):
                 await self._exec_print(st)
             elif isinstance(st, Assignment):
                 await self._exec_assignment(st)
@@ -323,7 +318,7 @@ class Interpreter:
                 return "/" + expr.name + "/(" + args_str + ")"
         return str(expr)
 
-    async def _call_remote_function(self, func_name: str, ndn_names: list[str]) -> str:
+    async def _call_remote_function(self, func_name: str, ndn_names: list[str]) -> Any:
         # 1. メモリキャッシュ確認（最速）
         if func_name in Interpreter._code_cache:
             return await self._run_cached(func_name, Interpreter._code_cache[func_name], ndn_names)
@@ -375,24 +370,19 @@ class Interpreter:
         except Exception:
             return None
 
-    async def _run_cached(self, func_name: str, code: str, ndn_names: list[str]) -> str:
+    async def _run_cached(self, func_name: str, code: str, ndn_names: list[str]) -> Any:
         """キャッシュ済み .ndn コードを引数付きでローカル実行する。"""
         from ..parser.parser import parse
         arg_dict = {f"arg{i}": v for i, v in enumerate(ndn_names)}
         program = parse(code)
         interp = Interpreter(args=arg_dict)
         interp.app = self.app
-        buffer = io.StringIO()
-        with contextlib.redirect_stdout(buffer):
-            await interp._exec_block(program)
-        return buffer.getvalue().strip()
+        return await interp._exec_block(program)
 
     async def exec_in_context(self, program: Program, app: NDNApp) -> str:
-        """既存の NDNApp のコンテキスト内で .ndn プログラムを実行し、出力を文字列で返す。
+        """既存の NDNApp 内で実行し、return の値を文字列で返す。print は表示のみ。
         seed サーバーなど、すでにイベントループが動いている環境から呼び出す用途向け。
         通常の run() と異なり、新たなイベントループや NDNApp を起動しない。"""
         self.app = app
-        buffer = io.StringIO()
-        with contextlib.redirect_stdout(buffer):
-            await self._exec_block(program)
-        return buffer.getvalue().strip()
+        result = await self._exec_block(program)
+        return '' if result is None else str(result)

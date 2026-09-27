@@ -6,7 +6,7 @@ from typing import List
 from lark import Lark, Transformer, v_args
 
 from .ast import (
-	PrintStatement, Assignment, ExprStatement,
+	PrintStatement, ReturnStatement, Assignment, ExprStatement,
 	StringLiteral, NumberLiteral, Variable,
 	ExpressInterest, FunctionCall, BinOp, UnaryOp, Program, Expr
 )
@@ -29,6 +29,10 @@ class _BuildAST(Transformer):
 	@v_args(inline=True)
 	def print_stmt(self, print_token, expr: Expr):  # type: ignore[override]
 		return PrintStatement(expr=expr)
+
+	@v_args(inline=True)
+	def return_stmt(self, return_token, expr: Expr):
+		return ReturnStatement(expr=expr)
 
 	@v_args(inline=True)
 	def expr_stmt(self, expr: Expr):  # type: ignore[override]
