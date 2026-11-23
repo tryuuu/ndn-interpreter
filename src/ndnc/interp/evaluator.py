@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import Any, Optional
 import asyncio
 import json
+import hashlib
 import os
 import time
 import sys
@@ -100,6 +101,8 @@ class Interpreter:
     _code_cache: dict[str, str] = {}
     # プロセス内で共有するメモリキャッシュ（NDN 名 → 取得済みデータ）
     _interest_cache: dict[str, Any] = {}
+    # Share completed remote function results across interpreters in this process.
+    _function_result_cache: dict[str, Any] = {}
 
     def __init__(self, args: dict[str, Any] | None = None, base_dir: Path | None = None):
         self.base_dir = Path(base_dir).resolve() if base_dir is not None else Path.cwd()
@@ -353,6 +356,30 @@ class Interpreter:
     @tracer.start_as_current_span('ndnc.function.call')
     async def _call_remote_function(self, func_name: str, arg_values: list[Any]) -> Any:
         trace.get_current_span().set_attribute('ndn.function.name', func_name)
+        cache_key = self._function_result_cache_key(func_name, arg_values)
+        if cache_key in Interpreter._function_result_cache:
+            trace.get_current_span().add_event('ndnc.cache.hit', {
+                'ndn.function.name': func_name, 'cache.type': 'memory', 'cache.target': 'function_result'})
+            return Interpreter._function_result_cache[cache_key]
+        result = await self._execute_remote_function(func_name, arg_values)
+        Interpreter._function_result_cache[cache_key] = result
+        return result
+
+    @staticmethod
+    def _function_result_cache_key(func_name: str, arg_values: list[Any]) -> str:
+        arguments = []
+        for value in arg_values:
+            if isinstance(value, bytes):
+                arguments.append(['bytes', hashlib.sha256(value).hexdigest()])
+            elif isinstance(value, ExpressInterest):
+                arguments.append(['interest', value.name])
+            else:
+                arguments.append(['value', value])
+        # For compress_image(image): ["compress_image", [["bytes", "<image SHA-256>"]]].
+        encoded = json.dumps([func_name, arguments], ensure_ascii=False).encode('utf-8')
+        return hashlib.sha256(encoded).hexdigest()
+
+    async def _execute_remote_function(self, func_name: str, arg_values: list[Any]) -> Any:
         # 1. リモート側で実行する。空の応答も有効な実行結果なので、
         #    例外時だけローカル実行へフォールバックする。
         wire_args = []
